@@ -10,7 +10,7 @@ import FanChartPage from './pages/fanchart/FanChartPage';
 // общий и просто "виден" сразу после логина в портале — см.
 // filter-app/src/status/FANCHART_EXTRACTION_PLAN.md.
 //
-// Важно: переход на "/" — это ссылка, а не автоматический location.href-редирект.
+// Переход на "/" — это ссылка, а не автоматический location.href-редирект.
 // Авторедирект на "/" исторически зацикливался: локально порталы крутятся на
 // разных портах (5173 vs 5174 — разные origin, общего localStorage нет), а "/"
 // на dev-сервере графиков (base: '/graphs/') сама редиректит обратно на
@@ -22,9 +22,26 @@ import FanChartPage from './pages/fanchart/FanChartPage';
 // access_token/refresh_token из localStorage портала (:5173) руками (devtools)
 // в localStorage localhost:5174 и обновите страницу.
 
+const PORTAL_URL = import.meta.env.DEV
+  ? `${window.location.protocol}//${window.location.hostname}:5173/`
+  : '/';
+
+function TopBar() {
+  return (
+    <header className="bg-white dark:bg-neutral-900 border-b border-gray-200 dark:border-gray-700
+                       px-6 py-3 flex items-center gap-3">
+      <a href={PORTAL_URL} className="text-sm font-bold text-gray-900 dark:text-white hover:underline">
+        ← Корпоративный портал
+      </a>
+      <span className="text-gray-300 dark:text-gray-600">/</span>
+      <span className="text-sm text-gray-500 dark:text-gray-400">Графики</span>
+    </header>
+  );
+}
+
 function CenteredMessage({ title, reason, children }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white dark:bg-neutral-950 px-4">
+    <div className="min-h-[calc(100vh-53px)] flex items-center justify-center bg-white dark:bg-neutral-950 px-4">
       <div className="text-center space-y-3 max-w-sm">
         <p className="text-lg font-medium text-gray-900 dark:text-white">{title}</p>
         {reason && <p className="text-sm text-gray-500 dark:text-gray-400">{reason}</p>}
@@ -36,7 +53,7 @@ function CenteredMessage({ title, reason, children }) {
 
 function PortalLink() {
   return (
-    <a href="/" className="inline-block text-sm text-blue-600 dark:text-blue-400 hover:underline">
+    <a href={PORTAL_URL} className="inline-block text-sm text-blue-600 dark:text-blue-400 hover:underline">
       Вернуться в портал
     </a>
   );
@@ -66,12 +83,11 @@ function AppInner() {
     return () => { cancelled = true; };
   }, []);
 
+  let body;
   if (status === 'loading') {
-    return <CenteredMessage title="Загрузка…" />;
-  }
-
-  if (status === 'unauthenticated') {
-    return (
+    body = <CenteredMessage title="Загрузка…" />;
+  } else if (status === 'unauthenticated') {
+    body = (
       <CenteredMessage title="Вы не авторизованы" reason="Войдите в портал — эта страница использует вашу текущую сессию.">
         <PortalLink />
         {import.meta.env.DEV && (
@@ -84,19 +100,20 @@ function AppInner() {
         )}
       </CenteredMessage>
     );
-  }
-
-  if (!can(user, PERM.PAGE_GRAPH_READ)) {
-    return (
+  } else if (!can(user, PERM.PAGE_GRAPH_READ)) {
+    body = (
       <CenteredMessage title="Нет доступа" reason="У вашей учётной записи нет прав на просмотр графиков.">
         <PortalLink />
       </CenteredMessage>
     );
+  } else {
+    body = <FanChartPage />;
   }
 
   return (
     <div className="min-h-screen bg-white dark:bg-neutral-950">
-      <FanChartPage />
+      <TopBar />
+      {body}
     </div>
   );
 }
