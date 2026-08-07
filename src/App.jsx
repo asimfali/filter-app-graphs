@@ -1,30 +1,19 @@
-import { useEffect, useState } from 'react';
-import { authApi, tokenStorage } from './api/auth';
-import { can, PERM } from './utils/permissions';
+import { useAuthGate, portalUrl, can, PERM } from 'portal-core';
 import { ThemeProvider } from './contexts/ThemeContext';
 import FanChartPage from './pages/fanchart/FanChartPage';
 
 // Вход в это приложение не реализуется здесь — он выдаётся основным порталом
 // (filter-app). В проде оба приложения раздаются nginx'ом с одного origin
 // (портал на "/", это приложение на "/graphs/"), поэтому localStorage с JWT
-// общий и просто "виден" сразу после логина в портале — см.
-// filter-app/src/status/FANCHART_EXTRACTION_PLAN.md.
-//
-// Переход на "/" — это ссылка, а не автоматический location.href-редирект.
-// Авторедирект на "/" исторически зацикливался: локально порталы крутятся на
-// разных портах (5173 vs 5174 — разные origin, общего localStorage нет), а "/"
-// на dev-сервере графиков (base: '/graphs/') сама редиректит обратно на
-// "/graphs/" — без токена там снова редирект на "/", и так по кругу без остановки.
-// Кликабельная ссылка этого класса багов не создаёт в принципе — ни локально,
-// ни в проде (даже если сессия истекла ровно в момент захода).
+// общий и просто "виден" сразу после логина в портале. Bootstrap-логика
+// (проверка токена, профиль, право) — в portal-core#useAuthGate, здесь только
+// вёрстка под каждый статус, см. portal-core/README.md.
 //
 // В локальной разработке — чтобы проверить это приложение, скопируйте
 // access_token/refresh_token из localStorage портала (:5173) руками (devtools)
 // в localStorage localhost:5174 и обновите страницу.
 
-const PORTAL_URL = import.meta.env.DEV
-  ? `${window.location.protocol}//${window.location.hostname}:5173/`
-  : '/';
+const PORTAL_URL = portalUrl();
 
 function TopBar() {
   return (
@@ -60,28 +49,7 @@ function PortalLink() {
 }
 
 function AppInner() {
-  const [status, setStatus] = useState('loading'); // loading | unauthenticated | denied | ready
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      if (!tokenStorage.getAccess()) {
-        if (!cancelled) setStatus('unauthenticated');
-        return;
-      }
-      const { ok, data } = await authApi.profile();
-      if (cancelled) return;
-      if (!ok) {
-        tokenStorage.clear();
-        setStatus('unauthenticated');
-        return;
-      }
-      setUser(data);
-      setStatus('ready');
-    })();
-    return () => { cancelled = true; };
-  }, []);
+  const { status, user } = useAuthGate(PERM.PAGE_GRAPH_READ);
 
   let body;
   if (status === 'loading') {
@@ -100,7 +68,7 @@ function AppInner() {
         )}
       </CenteredMessage>
     );
-  } else if (!can(user, PERM.PAGE_GRAPH_READ)) {
+  } else if (status === 'denied' || !can(user, PERM.PAGE_GRAPH_READ)) {
     body = (
       <CenteredMessage title="Нет доступа" reason="У вашей учётной записи нет прав на просмотр графиков.">
         <PortalLink />

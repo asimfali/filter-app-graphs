@@ -2,7 +2,7 @@
 // которые использует страница "Графики". Остальные методы (proposals, calculate,
 // config, dxf-import) относятся к странице "Подбор" и остались в filter-app,
 // см. filter-app/src/status/FANCHART_EXTRACTION_PLAN.md.
-import { apiFetch } from './auth';
+import { apiFetch } from 'portal-core';
 
 const BASE = '/api/v1/selection';
 
