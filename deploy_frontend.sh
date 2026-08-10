@@ -2,8 +2,11 @@
 
 set -e
 
-PROJECT_DIR="/opt/tmdata"
-FRONTEND_DIR="$PROJECT_DIR/frontend-graphs"
+# /opt/tmdata-frontend/ — намеренно НЕ под /opt/tmdata: туда каждый backend-деплой
+# (drf_catalog_service/deploy.sh) делает `rsync -a --delete`, и всё, что не в его
+# --exclude, стирается на следующем же деплое бэкенда. Отдельная директория рядом —
+# rsync бэкенда её вообще не видит, никакой exclude не нужен и не может протухнуть.
+FRONTEND_DIR="/opt/tmdata-frontend/graphs"
 DEV_DIR="$(pwd)"
 GIT_REMOTE="local"
 TMDATA_USER="tmdata"
